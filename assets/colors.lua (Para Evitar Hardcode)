@@ -1,0 +1,12 @@
+return {
+teamColors = {
+ally = Color3.fromRGB(0, 255, 0),
+enemy = Color3.fromRGB(255, 0, 0),
+neutral = Color3.fromRGB(255, 255, 255)
+},
+lootColors = {
+common = Color3.fromRGB(128, 128, 128),
+rare = Color3.fromRGB(0, 128, 255),
+epic = Color3.fromRGB(128, 0, 128)
+}
+}
