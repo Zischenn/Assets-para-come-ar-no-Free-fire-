@@ -1,0 +1,96 @@
+local Aimbot = {}
+Aimbot.__index = Aimbot
+
+function Aimbot.new(config, antiBan)
+local self = setmetatable({}, Aimbot)
+self.enabled = config.enabled
+self.smooth = config.smooth
+self.fov = config.fov
+self.lock = config.lock
+self.antiBan = antiBan
+self.lastTarget = nil
+return self
+end
+
+function Aimbot:update()
+if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+self.lastTarget = nil
+return
+end
+
+-- Detecção de alvos por cor (OpenCV-style em Roblox)
+local enemies = self:detectEnemiesInFOV()
+if #enemies == 0 then return end
+
+local closest = self:getClosest(enemies)
+if not closest then return end
+
+-- Smooth aim com curva de aceleração
+local direction = closest.position - Camera.CFrame.Position
+local distance = direction.Magnitude
+local sensitivity = self:calculateSmoothFactor(distance)
+
+direction = direction.Unit
+local newCFrame = CFrame.new(
+Camera.CFrame.Position,
+Camera.CFrame.Position + (direction * sensitivity)
+)
+
+-- Aplica smooth
+Camera.CFrame = Camera.CFrame:Lerp(newCFrame, self.smooth / 100)
+
+-- Anti-ban: randomizar leve o movimento final
+if math.random() < 0.05 then
+local rx, ry = math.rad(math.random(-1,1)), math.rad(math.random(-1,1))
+Camera.CFrame = Camera.CFrame * CFrame.Angles(0, rx, ry)
+end
+end
+
+function Aimbot:detectEnemiesInFOV()
+local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+local radius = self.fov / 2
+local enemies = {}
+
+for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
+local char = player.Character
+if char and char:FindFirstChild("HumanoidRootPart") then
+local vector, onScreen = Camera:WorldToScreenPoint(char.HumanoidRootPart.Position)
+if onScreen then
+local dist = (vector - center).Magnitude
+if dist < radius then
+table.insert(enemies, {
+player = player,
+position = char.HumanoidRootPart.Position,
+screen = vector
+})
+end
+end
+end
+end
+end
+
+return enemies
+end
+
+function Aimbot:calculateSmoothFactor(distance)
+-- Menor distância = menos suavidade para reação rápida
+return math.max(0.1, math.min(1.0, 1.0 / (distance / 50)))
+end
+
+function Aimbot:getClosest(enemies)
+local closest = nil
+local minDist = math.huge
+
+for _, enemy in ipairs(enemies) do
+local dist = (enemy.screen - cameraCenter).Magnitude
+if dist < minDist then
+minDist = dist
+closest = enemy
+end
+end
+
+return closest
+end
+
+return setmetatable(Aimbot, {__call = function(_, config, antiBan) return Aimbot.new(config, antiBan) end})
